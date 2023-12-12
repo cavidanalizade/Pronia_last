@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using ProniaAdmin.ViewModels;
 using System;
@@ -11,57 +12,129 @@ namespace ProniaAdmin.Controllers
 		private const string CartCookieKey = "Cart";
 		AppDBC _db;
 
-		public CartController(AppDBC db)
-		{
-			_db = db;
-		}
+        public CartController(AppDBC db)
+        {
+            _db = db;
+        }
 
-		public IActionResult Index()
+        public IActionResult Index()
 		{
-/*			List<BasketVM> cartItems = GetCartItemsFromCookie();
-			List<Product> cartProducts = new List< Product >
-			foreach (var item in cartItems)
+
+			var jsonCookie = Request.Cookies["Basket"];
+			List<BasketItemVM> basketItems = new List<BasketItemVM>();
+			if (jsonCookie != null)
 			{
+				var cookieItems = JsonConvert.DeserializeObject<List<BasketVM>>(jsonCookie);
 
-				foreach (var p in _db.products)
+				bool countCheck = false;
+				List<BasketVM> deletedCookie = new List<BasketVM>();
+				foreach (var item in cookieItems)
 				{
-
+					Product product = _db.Products.Include(p => p.ProductImages.Where(p => p.IsPrime == true)).FirstOrDefault(p => p.Id == item.ProductId);
+					if (product == null)
+					{
+						deletedCookie.Add(item);
+						continue;
+					}
+					basketItems.Add(new BasketItemVM()
+					{
+						Id = item.ProductId,
+						Name = product.Name,
+						Price = (double)product.Price,
+						Count = item.Quantity,
+						ImgUrl = product.ProductImages.FirstOrDefault(p=>p.IsPrime==true).ImgUrl
+					});
+				}
+				if (deletedCookie.Count > 0)
+				{
+					foreach (var delete in deletedCookie)
+					{
+						cookieItems.Remove(delete);
+					}
+					Response.Cookies.Append("Basket", JsonConvert.SerializeObject(cookieItems));
 				}
 
-			}*/
-
-			return View(/*cartItems*/);
+			}
+			return View(basketItems);
 		}
 
-		public IActionResult AddToCart(int productId)
+		public IActionResult AddBasket(int Id)
 		{
-			List<BasketVM> cartItems = GetCartItemsFromCookie();
+			if (Id <= 0) return BadRequest();
+            Product product = _db.Products.FirstOrDefault(p => p.Id == Id);
 
-			BasketVM existingItem = cartItems.FirstOrDefault(item => item.ProductId == productId);
+            if (product == null) return NotFound();
+			List<BasketVM> basket;
+			var json = Request.Cookies["Basket"];
 
-			if (existingItem != null)
+			if (json != null)
 			{
-				existingItem.Quantity++;
+				basket = JsonConvert.DeserializeObject<List<BasketVM>>(json);
+				var existProduct = basket.FirstOrDefault(p => p.ProductId == Id);
+				if (existProduct != null)
+				{
+					existProduct.Quantity += 1;
+				}
+				else
+				{
+					basket.Add(new BasketVM()
+					{
+						ProductId = Id,
+						Quantity = 1
+					});
+				}
+
 			}
 			else
 			{
-				BasketVM newItem = new BasketVM
+				basket = new List<BasketVM>();
+				basket.Add(new BasketVM()
 				{
-					ProductId = productId,
+					ProductId = Id,
 					Quantity = 1
-				};
-
-				cartItems.Add(newItem);
+				});
 			}
 
-			UpdateCartItemsInCookie(cartItems);
 
-			return RedirectToAction("Index");
+			var cookieBasket = JsonConvert.SerializeObject(basket);
+			Response.Cookies.Append("Basket", cookieBasket);
+
+
+
+
+
+
+			return RedirectToAction(nameof(Index), "Home");
 		}
+		   public IActionResult RemoveBasketItem(int Id)
+        {
+            var cookieBasket=Request.Cookies["Basket"];
+            if(cookieBasket!=null)
+            {
+                List<BasketVM> basket = JsonConvert.DeserializeObject<List<BasketVM>>(cookieBasket);
+
+                var deleteElement=basket.FirstOrDefault(p => p.ProductId == Id);
+                if(deleteElement!=null)
+                {
+                    basket.Remove(deleteElement);
+                }
 
 
-		#region Functions
-		private List<BasketVM> GetCartItemsFromCookie()
+                Response.Cookies.Append("Basket", JsonConvert.SerializeObject(basket));
+                return Ok();
+            }
+            return NotFound();
+        }
+        public IActionResult GetBasket()
+        {
+            var basketCookieJson = Request.Cookies["Basket"];
+
+            return Content(basketCookieJson);
+        }
+
+
+        #region Functions
+        private List<BasketVM> GetCartItemsFromCookie()
 		{
 			string cartJson = Request.Cookies[CartCookieKey];
 

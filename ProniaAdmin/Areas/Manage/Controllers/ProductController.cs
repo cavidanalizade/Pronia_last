@@ -59,15 +59,13 @@ namespace Pronia.Areas.Manage.Controllers
 
             }
 
-
-
             await _db.Products.AddAsync(product);
             await _db.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
         public async Task<IActionResult> Update(int id)
         {
-            Product product = await _db.Products.Where(p => p.Id == id).FirstOrDefaultAsync();
+            Product product = await _db.Products.FirstOrDefaultAsync();
             if (product == null)
             {
                 return View("Error");
@@ -94,7 +92,7 @@ namespace Pronia.Areas.Manage.Controllers
             {
                 return View("Error");
             }
-            Product product = await _db.Products.Where(p => p.Id == vm.Id).FirstOrDefaultAsync();
+            Product product = await _db.Products.FirstOrDefaultAsync();
             if (product == null)
             {
                 return View("Error");
@@ -123,5 +121,6 @@ namespace Pronia.Areas.Manage.Controllers
             _db.SaveChanges();
             return RedirectToAction("index");
         }
+
     }
 }

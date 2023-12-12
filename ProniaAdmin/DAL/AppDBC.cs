@@ -1,10 +1,12 @@
 ﻿
 using Azure;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 
 namespace ProniaAdmin.DAL
 {
-    public class AppDBC:DbContext
+    public class AppDBC : IdentityDbContext<AppUser>
     {
         public AppDBC(DbContextOptions<AppDBC> options):base(options)
         {
